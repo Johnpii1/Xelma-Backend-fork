@@ -21,6 +21,7 @@ import { metricsMiddleware } from './middleware/metrics.middleware';
 import { requestIdMiddleware } from './middleware/requestId.middleware';
 import metricsRoutes from './routes/metrics.routes';
 import adminMetricsRoutes from './routes/admin-metrics.routes';
+import errorsRoutes from './routes/errors.routes';
 import corsDiagnosticsRoutes from './routes/admin-cors-diagnostics.routes';
 import deadLetterRoutes from './routes/admin-dead-letter.routes';
 import chatRoutes from "./routes/chat.routes";
@@ -135,6 +136,7 @@ export function createApp(): Express {
   app.use("/api/chat", chatRoutes);
   app.use("/api/notifications", notificationsRoutes);
   app.use("/api/admin/metrics", adminMetricsRoutes);
+  app.use("/api/errors", errorsRoutes);
   app.use("/api/admin/cors-diagnostics", corsDiagnosticsRoutes);
   app.use("/api/admin/dead-letter", deadLetterRoutes);
 
