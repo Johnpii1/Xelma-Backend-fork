@@ -4,7 +4,7 @@ import notificationService from './notification.service';
 import logger from '../utils/logger';
 import educationTipService from './education-tip.service';
 import { prisma } from '../lib/prisma';
-import { invalidateNamespace } from '../lib/redis';
+import { invalidateNamespace, invalidateLeaderboardSortedSet } from '../lib/redis';
 import {
    toDecimal,
    toNumber,
@@ -144,6 +144,7 @@ export class ResolutionService {
 
          // Invalidate leaderboard after transaction commits
          void invalidateNamespace('leaderboard');
+         void invalidateLeaderboardSortedSet();
 
          // Generate educational tip outside transaction (non-critical)
          try {

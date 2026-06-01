@@ -207,6 +207,12 @@ Xelma-Backend/
   - Current win streak
   - Accuracy percentage
 - **Queries**: Optimized database queries with pagination support
+- **Materialized sorted set**: When Redis is available, a Redis sorted set
+  (`ZSET`) stores every user's `totalEarnings` as the score. Rank lookups
+  become O(log N) instead of a full-table `COUNT(*)`. The set is kept in sync
+  after every `updateUserStatsForRound` call and invalidated whenever the
+  leaderboard namespace is flushed. The DB path is always the fallback when
+  Redis is unavailable.
 
 #### **7. WebSocket Service (`websocket.service.ts`)**
 - **Purpose**: Broadcasts real-time events to connected clients
@@ -484,6 +490,20 @@ Prisma’s Postgres connector reads pool/timeouts via connection string query pa
 - **PgBouncer**: if your stack uses PgBouncer in *transaction pooling* mode, set `DB_PGBOUNCER=true`.
 - **Visibility**: scrape `/metrics` and look for `db_pool_settings_info` to see the effective values.
 - **Validation**: invalid values are rejected at startup via config validation.
+
+#### Leaderboard cache tuning
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `LEADERBOARD_CACHE_TTL_SECONDS` | TTL for the per-page JSON cache entry. | `60` |
+| `LEADERBOARD_ZSET_TTL_SECONDS` | Safety-net TTL for the materialized sorted set. `0` disables automatic expiry; the set is invalidated explicitly after every round resolution. | `300` |
+
+The leaderboard uses a two-layer caching strategy:
+
+1. **Materialized sorted set (ZSET)** — Redis sorted set keyed by `totalEarnings`. Rank lookups are O(log N) instead of a full-table `COUNT(*)`. The set is updated after every `updateUserStatsForRound` call and flushed whenever the `leaderboard` namespace is invalidated.
+2. **Versioned JSON page cache** — The assembled leaderboard page (with wallet masking, accuracy, mode stats) is stored in the existing versioned namespace cache with a short TTL. This avoids re-fetching `UserStats` rows on every HTTP request.
+
+When Redis is unavailable both layers degrade gracefully to direct DB queries.
 
 ### 3. Set Up Database
 

@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { invalidateNamespace } from '../lib/redis';
+import { invalidateNamespace, invalidateLeaderboardSortedSet } from '../lib/redis';
 import { UserPriceRange } from '../types/round.types';
 import { toDecimal, toNumber } from '../utils/decimal.util';
 import {
@@ -229,6 +229,7 @@ export class PredictionService {
 
          // Invalidate leaderboard after prediction write affects user stats.
          void invalidateNamespace('leaderboard');
+         void invalidateLeaderboardSortedSet();
 
          // Store idempotency result if key provided
          if (idempotencyKey) {
