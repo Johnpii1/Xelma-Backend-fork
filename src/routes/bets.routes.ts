@@ -1,5 +1,6 @@
 import { Router, Response, NextFunction } from "express";
 import { validate } from "../middleware/validate.middleware";
+import { verifyStellarAuth, AuthenticatedRequest } from "../middleware/auth.middleware";
 import { upDownBetSchema, precisionBetSchema } from "../schemas/bets.schema";
 import betService from "../services/bet.service";
 
@@ -30,9 +31,23 @@ const router = Router();
  */
 router.post(
   "/up-down",
+  verifyStellarAuth,
   validate(upDownBetSchema),
-  (req, res: Response, next: NextFunction) => {
+  (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
+      const { address } = req.body;
+      const authenticatedAddress = req.walletAddress;
+
+      if (!authenticatedAddress) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      if (address !== authenticatedAddress) {
+        return res.status(403).json({
+          error: "Spoofing detected: Authenticated wallet does not match request body data.",
+        });
+      }
+
       // TODO: Call contract via Xelma TypeScript bindings — bets must go on-chain;
       // this endpoint is logging/analytics only for now
       betService.recordUpDownBet(req.body);
@@ -68,9 +83,23 @@ router.post(
  */
 router.post(
   "/precision",
+  verifyStellarAuth,
   validate(precisionBetSchema),
-  (req, res: Response, next: NextFunction) => {
+  (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
+      const { address } = req.body;
+      const authenticatedAddress = req.walletAddress;
+
+      if (!authenticatedAddress) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      if (address !== authenticatedAddress) {
+        return res.status(403).json({
+          error: "Spoofing detected: Authenticated wallet does not match request body data.",
+        });
+      }
+
       // TODO: Call contract via Xelma TypeScript bindings — bets must go on-chain;
       // this endpoint is logging/analytics only for now
       betService.recordPrecisionBet(req.body);

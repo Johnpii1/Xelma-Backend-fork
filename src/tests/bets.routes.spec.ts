@@ -2,8 +2,11 @@ import { describe, it, expect, beforeAll } from "@jest/globals";
 import request from "supertest";
 import { Express } from "express";
 import { createApp } from "../index";
+import { generateToken } from "../utils/jwt.util";
+import { UserRole } from "@prisma/client";
 
 const VALID_ADDRESS = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+const OTHER_ADDRESS = "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBZ";
 
 describe("Bets Routes - stub endpoints", () => {
   let app: Express;
@@ -13,9 +16,31 @@ describe("Bets Routes - stub endpoints", () => {
   });
 
   describe("POST /api/bets/up-down", () => {
-    it("returns 200 stub for valid UP/DOWN payload", async () => {
+    it("returns 401 when the request is missing a token", async () => {
       const res = await request(app)
         .post("/api/bets/up-down")
+        .send({ address: VALID_ADDRESS, amount: 10, side: "UP" });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe("No token provided");
+    });
+
+    it("returns 403 when the request body address does not match the authenticated wallet", async () => {
+      const token = generateToken("user-1", VALID_ADDRESS, UserRole.USER);
+      const res = await request(app)
+        .post("/api/bets/up-down")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ address: OTHER_ADDRESS, amount: 10, side: "UP" });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe("Spoofing detected: Authenticated wallet does not match request body data.");
+    });
+
+    it("returns 200 stub for valid UP/DOWN payload", async () => {
+      const token = generateToken("user-1", VALID_ADDRESS, UserRole.USER);
+      const res = await request(app)
+        .post("/api/bets/up-down")
+        .set("Authorization", `Bearer ${token}`)
         .send({ address: VALID_ADDRESS, amount: 10, side: "UP" });
 
       expect(res.status).toBe(200);
@@ -26,8 +51,10 @@ describe("Bets Routes - stub endpoints", () => {
     });
 
     it("returns 400 when required fields are missing", async () => {
+      const token = generateToken("user-1", VALID_ADDRESS, UserRole.USER);
       const res = await request(app)
         .post("/api/bets/up-down")
+        .set("Authorization", `Bearer ${token}`)
         .send({ address: VALID_ADDRESS, amount: 10 });
 
       expect(res.status).toBe(400);
@@ -37,9 +64,31 @@ describe("Bets Routes - stub endpoints", () => {
   });
 
   describe("POST /api/bets/precision", () => {
-    it("returns 200 stub for valid Precision payload", async () => {
+    it("returns 401 when the request is missing a token", async () => {
       const res = await request(app)
         .post("/api/bets/precision")
+        .send({ address: VALID_ADDRESS, amount: 5, predictedPrice: 0.12 });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe("No token provided");
+    });
+
+    it("returns 403 when the request body address does not match the authenticated wallet", async () => {
+      const token = generateToken("user-1", VALID_ADDRESS, UserRole.USER);
+      const res = await request(app)
+        .post("/api/bets/precision")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ address: OTHER_ADDRESS, amount: 5, predictedPrice: 0.12 });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe("Spoofing detected: Authenticated wallet does not match request body data.");
+    });
+
+    it("returns 200 stub for valid Precision payload", async () => {
+      const token = generateToken("user-1", VALID_ADDRESS, UserRole.USER);
+      const res = await request(app)
+        .post("/api/bets/precision")
+        .set("Authorization", `Bearer ${token}`)
         .send({ address: VALID_ADDRESS, amount: 5, predictedPrice: 0.12 });
 
       expect(res.status).toBe(200);
@@ -50,8 +99,10 @@ describe("Bets Routes - stub endpoints", () => {
     });
 
     it("returns 400 when predictedPrice is missing", async () => {
+      const token = generateToken("user-1", VALID_ADDRESS, UserRole.USER);
       const res = await request(app)
         .post("/api/bets/precision")
+        .set("Authorization", `Bearer ${token}`)
         .send({ address: VALID_ADDRESS, amount: 5 });
 
       expect(res.status).toBe(400);

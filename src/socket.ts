@@ -37,7 +37,7 @@ export function getCorsOrigins(): string | string[] {
          'CLIENT_URL not set; allowing all origins for development. ' +
             'Set CLIENT_URL to restrict origins.'
       );
-      return true;
+      return '*';
    }
 
    const additionalOrigins = process.env.ALLOWED_ORIGINS;
