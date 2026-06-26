@@ -1,5 +1,9 @@
 import { Router, Response, NextFunction } from "express";
 import { validate } from "../middleware/validate.middleware";
+import {
+  authenticateUser,
+  bindAuthenticatedWallet,
+} from "../middleware/auth.middleware";
 import { upDownBetSchema, precisionBetSchema } from "../schemas/bets.schema";
 import betService from "../services/bet.service";
 
@@ -11,25 +15,31 @@ const router = Router();
  *   post:
  *     summary: Submit an UP/DOWN bet (stub)
  *     tags: [bets]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [address, amount, side]
+ *             required: [amount, side]
  *             properties:
- *               address: { type: string }
+ *               address: { type: string, description: "Optional; must match JWT wallet when provided" }
  *               amount: { type: number }
  *               side: { type: string, enum: [UP, DOWN] }
  *     responses:
  *       200:
  *         description: Bet recorded (stub)
+ *       401:
+ *         description: Missing or invalid JWT
  *       400:
  *         description: Validation error
  */
 router.post(
   "/up-down",
+  authenticateUser,
+  bindAuthenticatedWallet,
   validate(upDownBetSchema),
   (req, res: Response, next: NextFunction) => {
     try {
@@ -49,25 +59,31 @@ router.post(
  *   post:
  *     summary: Submit a Precision bet (stub)
  *     tags: [bets]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [address, amount, predictedPrice]
+ *             required: [amount, predictedPrice]
  *             properties:
- *               address: { type: string }
+ *               address: { type: string, description: "Optional; must match JWT wallet when provided" }
  *               amount: { type: number }
  *               predictedPrice: { type: number }
  *     responses:
  *       200:
  *         description: Bet recorded (stub)
+ *       401:
+ *         description: Missing or invalid JWT
  *       400:
  *         description: Validation error
  */
 router.post(
   "/precision",
+  authenticateUser,
+  bindAuthenticatedWallet,
   validate(precisionBetSchema),
   (req, res: Response, next: NextFunction) => {
     try {
