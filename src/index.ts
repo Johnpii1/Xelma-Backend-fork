@@ -40,6 +40,7 @@ import deadLetterRoutes from './routes/admin-dead-letter.routes';
 import healthRoutes from './routes/health';
 import chatRoutes from './routes/chat.routes';
 import tournamentsRoutes from './routes/tournaments.routes';
+import pricesRoutes from './routes/prices';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './docs/openapi';
 import { initializeSocket } from './socket';
@@ -236,6 +237,7 @@ export function createApp(): Express {
          stale: priceOracle.isStale(),
          provider: priceOracle.getLastProvider(),
          lastUpdatedAt: lastUpdatedAt?.toISOString() ?? null,
+         source: priceOracle.getActiveSource(),
          timestamp: new Date().toISOString(),
       });
    });
