@@ -715,6 +715,22 @@ Operator endpoints (admin-only, gated by `requireAdmin`):
 
 ---
 
+## API Versioning
+
+The current versioned base URL is `/api/v1`.
+
+All endpoints are accessible under both `/api/v1/*` (versioned) and `/api/*` (legacy alias). The legacy paths (`/api/*`) are deprecated and will be removed on **2027-01-01**.
+
+Clients should migrate to `/api/v1/*` before that date.
+
+Responses from the deprecated legacy paths include the following headers:
+
+- `Deprecation: true`
+- `Sunset: Sat, 01 Jan 2027 00:00:00 GMT`
+- `Link: </api/v1{path}>; rel="successor-version"`
+
+---
+
 ## API Documentation
 
 The backend provides auto-generated **OpenAPI/Swagger** documentation.

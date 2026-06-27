@@ -44,6 +44,7 @@ import { swaggerSpec } from './docs/openapi';
 import { initializeSocket } from './socket';
 import { prisma } from './lib/prisma';
 import path from 'path';
+import { Router } from 'express';
 
 const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
 dotenv.config({ path: path.resolve(process.cwd(), envFile), override: false });
@@ -154,21 +155,49 @@ export function createApp(): Express {
       next();
    });
 
-   // API Routes
-   app.use('/api/auth', authRoutes);
-   app.use('/api/user', userRoutes);
-   app.use('/api/rounds', roundsRoutes);
-   app.use('/api/bets', betsRoutes);
-   app.use('/api/predictions', predictionsRoutes);
-   app.use('/api/education', educationRoutes);
-   app.use('/api/leaderboard', leaderboardRoutes);
-   app.use('/api/chat', chatRoutes);
-   app.use('/api/notifications', notificationsRoutes);
-   app.use('/api/tournaments', tournamentsRoutes);
-   app.use('/api/admin/metrics', adminMetricsRoutes);
-   app.use('/api/errors', errorsRoutes);
-   app.use('/api/admin/cors-diagnostics', corsDiagnosticsRoutes);
-   app.use('/api/admin/dead-letter', deadLetterRoutes);
+    // API Routes
+    app.use('/api/auth', authRoutes);
+    app.use('/api/user', userRoutes);
+    app.use('/api/rounds', roundsRoutes);
+    app.use('/api/bets', betsRoutes);
+    app.use('/api/predictions', predictionsRoutes);
+    app.use('/api/education', educationRoutes);
+    app.use('/api/leaderboard', leaderboardRoutes);
+    app.use('/api/chat', chatRoutes);
+    app.use('/api/notifications', notificationsRoutes);
+    app.use('/api/tournaments', tournamentsRoutes);
+    app.use('/api/admin/metrics', adminMetricsRoutes);
+    app.use('/api/errors', errorsRoutes);
+    app.use('/api/admin/cors-diagnostics', corsDiagnosticsRoutes);
+    app.use('/api/admin/dead-letter', deadLetterRoutes);
+
+    // Versioned API v1 router (same routes, under /api/v1 prefix)
+    const v1Router = Router();
+    v1Router.use('/auth', authRoutes);
+    v1Router.use('/user', userRoutes);
+    v1Router.use('/rounds', roundsRoutes);
+    v1Router.use('/bets', betsRoutes);
+    v1Router.use('/predictions', predictionsRoutes);
+    v1Router.use('/education', educationRoutes);
+    v1Router.use('/leaderboard', leaderboardRoutes);
+    v1Router.use('/chat', chatRoutes);
+    v1Router.use('/notifications', notificationsRoutes);
+    v1Router.use('/tournaments', tournamentsRoutes);
+    v1Router.use('/admin/metrics', adminMetricsRoutes);
+    v1Router.use('/errors', errorsRoutes);
+    v1Router.use('/admin/cors-diagnostics', corsDiagnosticsRoutes);
+    v1Router.use('/admin/dead-letter', deadLetterRoutes);
+    app.use('/api/v1', v1Router);
+
+    // Deprecation headers for legacy unversioned /api/* paths
+    app.use('/api', (req, res, next) => {
+       if (!req.path.startsWith('/v1')) {
+          res.setHeader('Deprecation', 'true');
+          res.setHeader('Sunset', 'Sat, 01 Jan 2027 00:00:00 GMT');
+          res.setHeader('Link', `</api/v1${req.path}>; rel="successor-version"`);
+       }
+       next();
+    });
 
    // Prometheus metrics endpoint
    app.use('/metrics', metricsRoutes);
