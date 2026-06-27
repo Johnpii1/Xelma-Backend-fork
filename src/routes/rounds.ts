@@ -2,9 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { betRateLimiter } from '../middleware/rateLimiter';
 import { validate } from '../middleware/validate.middleware';
 import { upDownBetSchema, precisionBetSchema } from '../schemas/bets.schema';
-import config from '../config';
-import roundService from '../services/round.service';
-import hackathonService from '../services/hackathon.service';
+import { getRepositories } from '../repositories';
 
 const router = Router();
 
@@ -27,13 +25,8 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (config.app.dataMode === 'mock') {
-      const rounds = await hackathonService.getRounds();
-      return res.json(rounds);
-    }
-
-    const { rounds, source } = await roundService.getActiveRoundsWithFallback();
-    return res.json({ source, rounds });
+    const rounds = await getRepositories().rounds.listActiveRounds();
+    return res.json(rounds);
   } catch (err) {
     next(err);
   }
@@ -49,7 +42,7 @@ router.post('/hackathon/up-down/:id/bet', betRateLimiter, validate(upDownBetSche
   try {
     const { id } = req.params;
     const { address, amount, side } = req.body;
-    await hackathonService.placeBet(id, address, amount, side);
+    await getRepositories().rounds.placeBet(id, address, amount, side);
     res.json({ success: true, message: 'Bet recorded (stub)' });
   } catch (err) {
     next(err);
@@ -60,7 +53,7 @@ router.post('/hackathon/precision/:id/bet', betRateLimiter, validate(precisionBe
   try {
     const { id } = req.params;
     const { address, amount, predictedPrice } = req.body;
-    await hackathonService.placeBet(id, address, amount, undefined, predictedPrice);
+    await getRepositories().rounds.placeBet(id, address, amount, undefined, predictedPrice);
     res.json({ success: true, message: 'Precision bet recorded (stub)' });
   } catch (err) {
     next(err);
