@@ -82,6 +82,13 @@ enum OutboxEventStatus {
   FAILED
 }
 
+enum TournamentStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 // =======================
 // Models
 // =======================
@@ -112,6 +119,43 @@ model User {
   stats               UserStats?
   transactions        Transaction[]
   multiplayerSessions MultiplayerSession[]
+  tournamentParticipants TournamentParticipant[]
+}
+
+model Tournament {
+  id                String                      @id @default(uuid())
+  name              String
+  description       String
+  mode              GameMode
+  status            TournamentStatus            @default(UPCOMING)
+  entryFee          Decimal                     @db.Decimal(20, 8)
+  prizePool         Decimal                     @db.Decimal(20, 8)
+  maxParticipants   Int
+  currentParticipants Int                     @default(0)
+  startTime         DateTime
+  endTime           DateTime
+  rounds            Int                         @default(1)
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+
+  participants TournamentParticipant[]
+
+  @@index([status])
+  @@index([mode])
+}
+
+model TournamentParticipant {
+  id           String     @id @default(uuid())
+  tournamentId String
+  userId       String
+  joinedAt     DateTime   @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@index([userId])
 }
 
 model Message {
@@ -372,5 +416,49 @@ model IdempotencyKey {
   @@unique([userId, endpoint, idempotencyKey])
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// Security audit log for authentication and authorization events.
+/// Stores structured audit events for compliance, security monitoring,
+/// and forensic analysis. Retention policy controls how long logs are kept.
+model AuditLog {
+  id          String   @id @default(uuid())
+  
+  // Event identification
+  eventType   String   @db.VarChar(100)
+  severity    String   @db.VarChar(20)
+  message     String   @db.VarChar(500)
+  outcome     String   @db.VarChar(20)
+  
+  // Actor information
+  actorType   String   @db.VarChar(50)
+  walletAddress String? @db.VarChar(100)
+  userId      String?  @db.VarChar(100)
+  ipAddress   String?  @db.VarChar(45)
+  userAgent   String?  @db.VarChar(500)
+  
+  // Context information
+  requestId   String?  @db.VarChar(100)
+  sessionId   String?  @db.VarChar(100)
+  endpoint    String?  @db.VarChar(200)
+  method      String?  @db.VarChar(10)
+  
+  // Resource information
+  resourceType String? @db.VarChar(50)
+  resourceId   String?  @db.VarChar(100)
+  resourceWalletAddress String? @db.VarChar(100)
+  
+  // Additional metadata (JSON)
+  metadata    Json?
+  
+  // Timestamps
+  timestamp   DateTime @default(now())
+  
+  @@index([eventType])
+  @@index([severity])
+  @@index([timestamp])
+  @@index([walletAddress])
+  @@index([userId])
+  @@index([outcome])
 }
 

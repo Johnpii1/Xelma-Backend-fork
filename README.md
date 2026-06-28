@@ -936,6 +936,72 @@ attempt.
 
 ---
 
+### Bet Endpoints
+
+#### Submit an UP/DOWN Bet
+
+```bash
+POST /api/bets/up-down
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+Idempotency-Key: a5b7-c9d8-e2f4-77a8-33b2
+
+{
+  "address": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+  "amount": 10,
+  "side": "UP"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Bet recorded (stub)",
+  "state": "stub"
+}
+```
+
+#### Submit a Precision Bet
+
+```bash
+POST /api/bets/precision
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+Idempotency-Key: a5b7-c9d8-e2f4-77a8-33b2
+
+{
+  "address": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+  "amount": 5,
+  "predictedPrice": 0.12
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Bet placed on-chain",
+  "state": "on-chain-success",
+  "txHash": "0x123..."
+}
+```
+
+#### Bet Creation Idempotency
+
+Both `/api/bets/up-down` and `/api/bets/precision` endpoints support safe client retries using the optional `Idempotency-Key` header.
+
+* **Idempotency-Key Header**: Optional. Standard string format (alphanumeric with hyphens/underscores, 8-255 characters).
+* **TTL (Time-To-Live)**: 24 hours. Stored idempotency records are kept for 24 hours (or as configured via `BET_IDEMPOTENCY_TTL_HOURS` environment variable) and then pruned by the daily scheduler.
+* **Retry Semantics**:
+  * **First Successful Request**: Performs the bet operation (either stub or submits on-chain) and caches the response.
+  * **Duplicate Request (Same Key & Body)**: Returns the original cached response with HTTP 200 without creating a duplicate bet or executing on-chain transactions again.
+  * **Mutation Check (Same Key, Different Body)**: Returns HTTP 409 Conflict with code `CONFLICT` and error code `IDEMPOTENCY_KEY_CONFLICT` to protect against unintentional reuse of keys across different operations.
+  * **Concurrency Protection**: Simultaneous concurrent requests with the identical key are coordinated using database-level locks. Only one request will execute the operation, while other concurrent retries safely block/wait for the result and receive the same response, preventing double-betting under high latency or race conditions.
+  * **Failures/Retries**: If the initial operation fails (e.g., Soroban network error or database timeout), the temporary lock is automatically released, allowing subsequent retries to execute the bet again instead of caching a failed state.
+
+---
+
 ### Leaderboard & User Stats
 
 #### Get Global Leaderboard
@@ -1949,10 +2015,26 @@ This section is designed so a new developer can boot and test the API in minutes
 git clone https://github.com/TevaLabs/Xelma-Backend.git
 cd Xelma-Backend
 npm install
+
+# 1. Start the PostgreSQL database container (if not running a local instance)
+docker compose up -d postgres
+
+# 2. Copy and customize your environment variables
 cp .env.example .env
-# Edit .env → set DATABASE_URL and JWT_SECRET at minimum
+# Edit .env → set DATABASE_URL and JWT_SECRET
+
+# 3. Generate Prisma client & apply core migrations
 npm run prisma:generate
-npm run prisma:migrate
+npx prisma migrate deploy
+
+# 4. Generate & apply Drizzle migrations for hackathon schema
+npx drizzle-kit generate
+npx ts-node src/db/migrate.ts
+
+# 5. Seed initial mock rounds and user data to Postgres
+npx ts-node src/db/seed.ts
+
+# 6. Start the server
 npm run dev
 ```
 
@@ -1963,13 +2045,15 @@ The server starts on `http://localhost:3001` (or the `PORT` in `.env`).
 | Variable | Example | Purpose |
 |---|---|---|
 | `PORT` | `3001` | Server listen port |
-| `DATABASE_URL` | `postgresql://user:pass@localhost:5432/xelma` | PostgreSQL connection |
+| `DATABASE_URL` | `postgresql://xelma:xelma@localhost:5432/xelma` | PostgreSQL connection |
 | `JWT_SECRET` | `my-secret-key` | Signs JWT tokens (app refuses to start without it) |
+| `DATA_MODE` | `mock` | Hackathon service data mode (set to `mock` to query Drizzle schema tables) |
+| `ENABLE_MULTIPLAYER_SOCIAL` | `true` | Feature flag to enable/disable chat and notifications routes |
 | `COINGECKO_API_URL` | `https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd` | Price oracle source |
 | `STELLAR_RPC_URL` | `https://soroban-testnet.stellar.org` | Stellar/Soroban RPC |
 | `CONTRACT_ID` | *(your deployed contract)* | Soroban prediction market contract |
 
-> **Note**: For hackathon MVP, the backend uses PostgreSQL for persistence. In-memory store is not used.
+> **Note**: For the Hackathon MVP, the backend is fully migrated from in-memory arrays to PostgreSQL via Drizzle ORM for durable persistence of users, rounds, and bets. No in-memory stores are used.
 
 ### 3. Hackathon Endpoint Curl Examples
 
@@ -2026,6 +2110,24 @@ curl -X POST http://localhost:3001/api/predictions/submit \
   -d '{"roundId": "ROUND_ID", "amount": 10, "side": "UP"}'
 ```
 
+#### Submit UP/DOWN Bet (requires JWT)
+
+Wallet authentication uses the challenge/connect flow above. Bets are bound to the JWT wallet; unauthenticated attempts return `401`.
+
+```bash
+curl -X POST http://localhost:3000/api/bets/up-down \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT" \
+  -d '{"amount": 10, "side": "UP"}'
+```
+
+```bash
+# Unauthenticated — rejected
+curl -X POST http://localhost:3000/api/bets/up-down \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 10, "side": "UP"}'
+```
+
 #### Get User Profile (requires JWT)
 
 ```bash
@@ -2059,11 +2161,13 @@ curl "http://localhost:3001/api/user/GXXX.../history?limit=20&offset=0"
 curl http://localhost:3001/api/user/GXXX.../public-profile
 ```
 
-#### Get On-chain User Stats
+#### Get Wallet Stats (returns per-wallet stats from PostgreSQL, echoing the address param)
 
 ```bash
 curl http://localhost:3001/api/user/GXXX.../stats
 ```
+
+> **Note on Feature Flags**: Chat (`/api/chat/*`) and Notification (`/api/notifications/*`) endpoints are feature-gated behind the `ENABLE_MULTIPLAYER_SOCIAL` configuration option. If this option is set to `false`, these endpoints will return a `404 Not Found` JSON response.
 
 #### Get Transactions (requires JWT)
 
