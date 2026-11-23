@@ -157,6 +157,75 @@ describe('Rounds Routes - Mode Validation (Issue #63)', () => {
       );
     });
 
+    it('rejects non-array LEGENDS priceRanges JSON', async () => {
+      const res = await request(app)
+        .post('/api/rounds/start')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          mode: 1,
+          startPrice: 0.1234,
+          duration: 300,
+          priceRanges: { min: 0.11, max: 0.12 },
+        });
+
+      expect(res.status).toBe(400);
+      expect(mockStartRound).not.toHaveBeenCalled();
+    });
+
+    it('rejects LEGENDS ranges with non-numeric or non-finite bounds', async () => {
+      const res = await request(app)
+        .post('/api/rounds/start')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          mode: 1,
+          startPrice: 0.1234,
+          duration: 300,
+          priceRanges: [
+            { min: "0.11", max: 0.12 },
+            { min: 0.12, max: 0.13 },
+          ],
+        });
+
+      expect(res.status).toBe(400);
+      expect(mockStartRound).not.toHaveBeenCalled();
+    });
+
+    it('rejects LEGENDS ranges where min is not less than max', async () => {
+      const res = await request(app)
+        .post('/api/rounds/start')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          mode: 1,
+          startPrice: 0.1234,
+          duration: 300,
+          priceRanges: [
+            { min: 0.12, max: 0.12 },
+            { min: 0.13, max: 0.14 },
+          ],
+        });
+
+      expect(res.status).toBe(400);
+      expect(mockStartRound).not.toHaveBeenCalled();
+    });
+
+    it('rejects overlapping LEGENDS ranges', async () => {
+      const res = await request(app)
+        .post('/api/rounds/start')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          mode: 1,
+          startPrice: 0.1234,
+          duration: 300,
+          priceRanges: [
+            { min: 0.11, max: 0.125 },
+            { min: 0.12, max: 0.13 },
+          ],
+        });
+
+      expect(res.status).toBe(400);
+      expect(mockStartRound).not.toHaveBeenCalled();
+    });
+
     it('should reject mode=-1 as invalid', async () => {
       const res = await request(app)
         .post('/api/rounds/start')
