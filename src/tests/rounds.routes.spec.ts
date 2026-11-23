@@ -151,8 +151,8 @@ describe('Rounds Routes - Mode Validation (Issue #63)', () => {
         0.1234,
         300,
         [
-          { min: 0.11, max: 0.12, pool: 0 },
-          { min: 0.12, max: 0.13, pool: 0 },
+          { min: 0.11, max: 0.12 },
+          { min: 0.12, max: 0.13 },
         ],
       );
     });
