@@ -158,6 +158,7 @@ describe('Rounds Routes - Mode Validation (Issue #63)', () => {
     });
 
     it('rejects non-array LEGENDS priceRanges JSON', async () => {
+      mockStartRound.mockClear();
       const res = await request(app)
         .post('/api/rounds/start')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -173,6 +174,7 @@ describe('Rounds Routes - Mode Validation (Issue #63)', () => {
     });
 
     it('rejects LEGENDS ranges with non-numeric or non-finite bounds', async () => {
+      mockStartRound.mockClear();
       const res = await request(app)
         .post('/api/rounds/start')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -191,6 +193,7 @@ describe('Rounds Routes - Mode Validation (Issue #63)', () => {
     });
 
     it('rejects LEGENDS ranges where min is not less than max', async () => {
+      mockStartRound.mockClear();
       const res = await request(app)
         .post('/api/rounds/start')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -209,6 +212,7 @@ describe('Rounds Routes - Mode Validation (Issue #63)', () => {
     });
 
     it('rejects overlapping LEGENDS ranges', async () => {
+      mockStartRound.mockClear();
       const res = await request(app)
         .post('/api/rounds/start')
         .set('Authorization', `Bearer ${adminToken}`)
